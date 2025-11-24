@@ -1,6 +1,6 @@
 # Trading Microservices POC
 
-A production-grade microservices proof-of-concept demonstrating event-driven architecture using Kafka as the streaming backbone. This system simulates a trading platform with order management, execution simulation, and real-time market data.
+A production-grade microservices proof-of-concept demonstrating event-driven architecture using Redpanda as the streaming backbone. This system simulates a trading platform with order management, execution simulation, and real-time market data.
 
 ## Architecture Overview
 
@@ -16,23 +16,23 @@ A production-grade microservices proof-of-concept demonstrating event-driven arc
 │   Order API     │ (Spring Boot 3)
 │   Port 8080     │
 └──────┬──────────┘
-       │ Kafka Producer
+       │ Redpanda Producer
        │ (orders.commands)
        ▼
 ┌─────────────────┐         ┌──────────────────┐
 │      OMS        │────────▶│ Execution Sim    │
 │   Port 8081     │         │   Port 8083      │
 └──────┬──────────┘         └────────┬─────────┘
-       │ Kafka Consumer              │
-       │ Kafka Producer              │ Kafka Producer
-       │ (orders.events)             │ (orders.events)
-       ▼                             ▼
+       │ Redpanda Consumer            │
+       │ Redpanda Producer            │ Redpanda Producer
+       │ (orders.events)              │ (orders.events)
+       ▼                              ▼
 ┌─────────────────────────────────────────────┐
-│              Kafka Broker                   │
+│            Redpanda Broker                  │
 │            Port 9092                        │
 └─────────────────────────────────────────────┘
        ▲
-       │ Kafka Producer
+       │ Redpanda Producer
        │ (market-data)
        │
 ┌──────────────┐
@@ -47,7 +47,7 @@ A production-grade microservices proof-of-concept demonstrating event-driven arc
 - **Technology**: Spring Boot 3
 - **Port**: 8082
 - **Responsibilities**:
-  - Publishes random market ticks to `market-data` Kafka topic every 100ms
+  - Publishes random market ticks to `market-data` Redpanda topic every 100ms
   - No REST API (only health endpoint)
   - Simulates price movements for 8 symbols (AAPL, MSFT, GOOGL, AMZN, TSLA, META, NVDA, NFLX)
 
@@ -69,7 +69,7 @@ A production-grade microservices proof-of-concept demonstrating event-driven arc
   - In-memory order store (ConcurrentHashMap)
   - Idempotency check (prevents duplicate order processing)
   - Publishes `OrderAccepted` events to `orders.events` topic
-  - Manual Kafka consumer acknowledgment
+  - Manual Redpanda consumer acknowledgment
   - Order validation
 
 ### 4. Execution Simulator (`execution-sim`)
@@ -96,6 +96,8 @@ A production-grade microservices proof-of-concept demonstrating event-driven arc
 2. **Order Processing**: OMS consumes command → validates → stores → publishes `OrderAccepted` → `orders.events`
 3. **Order Execution**: Execution Simulator consumes ACCEPTED events → waits 300-500ms → publishes `FILLED` → `orders.events`
 4. **Real-time Updates**: Order API consumer → WebSocket → UI updates
+
+**Note**: Redpanda is Kafka-compatible, so all Spring Kafka clients work seamlessly without code changes.
 
 ## Quick Start
 
@@ -126,7 +128,7 @@ The stack will be available at:
 - **OMS**: http://localhost:8081
 - **Market Sim**: http://localhost:8082
 - **Execution Sim**: http://localhost:8083
-- **Kafka**: localhost:9092
+- **Redpanda**: localhost:9092 (internal), localhost:19092 (external)
 
 ### Health Checks
 
@@ -265,7 +267,7 @@ The script tracks:
 
 ```
 trading-poc/
-├── docker-compose.yml          # Kafka + all services
+├── docker-compose.yml          # Redpanda + all services
 ├── README.md                    # This file
 ├── services/
 │   ├── market-sim/              # Market Data Simulator
@@ -303,11 +305,16 @@ trading-poc/
     └── package.json             # Script dependencies
 ```
 
-## Kafka Topics
+## Redpanda Topics
 
 - **`market-data`**: Market tick data published by Market Simulator
 - **`orders.commands`**: Order creation commands from Order API
 - **`orders.events`**: Order status events (ACCEPTED, FILLED, REJECTED)
+
+**Note**: Topics are auto-created when first used. You can also create them manually using:
+```bash
+docker exec -it redpanda rpk topic create market-data orders.commands orders.events
+```
 
 ## Development
 
@@ -341,8 +348,9 @@ npm run build
 Each service can be run independently:
 
 ```bash
-# Set Kafka bootstrap servers
-export SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+# Set Redpanda bootstrap servers (use internal port for Docker, external for local)
+export SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:19092  # External port
+# Or for Docker internal: redpanda:9092
 
 # Run service
 mvn spring-boot:run
@@ -352,10 +360,10 @@ mvn spring-boot:run
 
 ### Services Not Starting
 
-1. **Check Kafka is running**:
+1. **Check Redpanda is running**:
    ```bash
    docker-compose ps
-   # Ensure zookeeper and kafka are healthy
+   # Ensure redpanda is healthy
    ```
 
 2. **Check service logs**:
@@ -386,21 +394,26 @@ mvn spring-boot:run
 
 3. **Check CORS settings** in `order-api` WebSocket configuration
 
-### Kafka Connection Issues
+### Redpanda Connection Issues
 
-1. **Verify Kafka is accessible**:
+1. **Verify Redpanda is accessible**:
    ```bash
-   docker exec -it kafka kafka-broker-api-versions --bootstrap-server localhost:9092
+   docker exec -it redpanda rpk cluster health
    ```
 
 2. **Check topic creation**:
    ```bash
-   docker exec -it kafka kafka-topics --list --bootstrap-server localhost:9092
+   docker exec -it redpanda rpk topic list
    ```
 
 3. **View topic messages**:
    ```bash
-   docker exec -it kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic orders.events --from-beginning
+   docker exec -it redpanda rpk topic consume orders.events --brokers localhost:9092
+   ```
+
+4. **Check Redpanda admin API**:
+   ```bash
+   curl http://localhost:9644/api/v1/status/ready
    ```
 
 ### Order Not Processing
@@ -420,7 +433,7 @@ mvn spring-boot:run
 
 ## Key Features
 
-- ✅ **Event-Driven Architecture**: All communication via Kafka topics
+- ✅ **Event-Driven Architecture**: All communication via Redpanda topics (Kafka-compatible)
 - ✅ **Microservice Independence**: Each service has its own Dockerfile and configs
 - ✅ **Idempotency**: OMS prevents duplicate order processing
 - ✅ **Real-time Updates**: WebSocket for live order status
@@ -431,7 +444,7 @@ mvn spring-boot:run
 ## Technology Stack
 
 - **Backend**: Spring Boot 3.x, Java 17+
-- **Messaging**: Apache Kafka
+- **Messaging**: Redpanda (Kafka-compatible streaming platform)
 - **Frontend**: React 18, Vite
 - **WebSocket**: STOMP over SockJS
 - **Build**: Maven, Docker
@@ -447,6 +460,16 @@ mvn spring-boot:run
 - [ ] Grafana dashboards
 - [ ] Kubernetes manifests
 - [ ] Distributed tracing (Jaeger/Zipkin)
+
+## Why Redpanda?
+
+Redpanda is a Kafka-compatible streaming platform that offers:
+- **Better Performance**: Lower latency and higher throughput than Kafka
+- **Simpler Operations**: No Zookeeper dependency, easier to run
+- **Kafka Compatibility**: Works with all existing Kafka clients (including Spring Kafka)
+- **Resource Efficiency**: Lower memory and CPU usage
+
+All Spring Boot services use `spring-kafka` library, which works seamlessly with Redpanda without any code changes.
 
 ## License
 
