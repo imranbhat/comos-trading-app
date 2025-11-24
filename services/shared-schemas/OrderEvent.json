@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "OrderEvent",
+  "description": "Order status event",
+  "required": ["eventId", "orderId", "status", "timestamp"],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "description": "Unique event identifier"
+    },
+    "orderId": {
+      "type": "string",
+      "description": "Order identifier"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["ACCEPTED", "FILLED", "PARTIALLY_FILLED", "REJECTED", "CANCELLED"],
+      "description": "Order status"
+    },
+    "symbol": {
+      "type": "string",
+      "description": "Trading symbol"
+    },
+    "side": {
+      "type": "string",
+      "enum": ["BUY", "SELL"],
+      "description": "Order side"
+    },
+    "quantity": {
+      "type": "number",
+      "description": "Order quantity"
+    },
+    "filledQuantity": {
+      "type": "number",
+      "description": "Filled quantity"
+    },
+    "price": {
+      "type": "number",
+      "description": "Order price"
+    },
+    "fillPrice": {
+      "type": "number",
+      "description": "Fill price"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Event timestamp"
+    },
+    "message": {
+      "type": "string",
+      "description": "Optional event message"
+    }
+  }
+}
+

@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "Tick",
+  "description": "Market data tick",
+  "required": ["symbol", "price", "timestamp"],
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Trading symbol (e.g., AAPL, MSFT)"
+    },
+    "price": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Current market price"
+    },
+    "volume": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Trading volume"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Tick timestamp"
+    },
+    "bid": {
+      "type": "number",
+      "description": "Bid price"
+    },
+    "ask": {
+      "type": "number",
+      "description": "Ask price"
+    }
+  }
+}
+
